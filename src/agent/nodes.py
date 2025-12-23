@@ -10,6 +10,7 @@ Each node represents a step in the agent's reasoning and execution process:
 """
 
 from typing import Dict, Any
+import re
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
@@ -56,6 +57,8 @@ Available tools for each step:
 
 Create a plan with 2-5 steps. Each step should be a clear action that can be executed with one of the tools.
 
+Do NOT assume a specific category (like "Electronics") unless the user explicitly mentions it.
+
 Respond with a JSON array of steps, like:
 ["Step 1: Search for products in Electronics category", "Step 2: Analyze reviews to find complaints", "Step 3: Calculate category statistics for comparison"]
 """
@@ -70,7 +73,6 @@ Respond with a JSON array of steps, like:
 
     # Parse the plan from the response
     import json
-    import re
 
     # Try to extract JSON array from response
     response_text = response.content
@@ -128,18 +130,21 @@ Available tools and their parameters:
    - min_price: float
    - max_price: float
    - min_rating: float (1.0-5.0)
+   - max_rating: float (1.0-5.0)
    - keyword: str (search in product name/description)
-   - limit: int (default 10)
+   - limit: int (optional)
 
 2) analyze_reviews
    - category: str
    - product_name: str (partial match)
+   - product_names: list[str] (exact list)
    - analysis_type: str ("complaints", "praise", "themes", "all")
    - min_rating: float
    - max_rating: float
 
 3) calculate_statistics
    - operation: str ("category_comparison", "price_analysis", "rating_ranking", "discount_effectiveness", "summary")
+   - product_names: list[str] (exact list)
    - categories: list[str] (for comparison)
    - top_n: int (for rankings)
    - group_by: str ("category")
@@ -186,7 +191,6 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
     LangChain tool to get results.
     """
     import json
-    import re
 
     # Parse tool selection from intermediate analysis
     analysis = state.get("intermediate_analysis", "")
@@ -218,14 +222,56 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
         if tool_name == "calculate_statistics" and "operation" not in parameters:
             parameters["operation"] = "summary"
 
+        # Enforce pipeline: downstream tools must use the latest search subset (if available)
+        if tool_name in ["analyze_reviews", "calculate_statistics"]:
+            last_search = None
+            for prev in reversed(state.get("tool_results", [])):
+                if prev.get("tool") == "search_products":
+                    last_search = prev.get("result")
+                    break
+
+            if isinstance(last_search, dict) and isinstance(
+                last_search.get("products"), list
+            ):
+                product_names = [
+                    p.get("product_name")
+                    for p in last_search["products"]
+                    if p.get("product_name")
+                ]
+                if (
+                    tool_name == "analyze_reviews"
+                    and "product_names" not in parameters
+                    and "product_name" not in parameters
+                ):
+                    parameters["product_names"] = product_names
+                if (
+                    tool_name == "calculate_statistics"
+                    and "product_names" not in parameters
+                    and not parameters.get("categories")
+                ):
+                    parameters["product_names"] = product_names
+            elif isinstance(last_search, str):
+                # Search failed/was too broad; do not proceed with whole-dataset analysis
+                return {
+                    "messages": [
+                        AIMessage(
+                            content=f"Stopping: search did not produce a product subset ({last_search})"
+                        )
+                    ],
+                    "tool_results": [
+                        {
+                            "error": f"Search did not produce a product subset: {last_search}"
+                        }
+                    ],
+                    "needs_more_info": False,
+                }
+
         # Fallback: if search_products is selected with no category/keyword, try to use user_goal as a hint
         if tool_name == "search_products":
             if not parameters.get("category") and not parameters.get("keyword"):
                 parameters["category"] = state.get("user_goal", "")
             # Infer rating filter from user goal if present (e.g., "below 4.0", "under 4")
             if "max_rating" not in parameters:
-                import re
-
                 goal_text = state.get("user_goal", "")
                 match = re.search(
                     r"(below|under|less than)\s*([0-9]\.?[0-9]?)",
@@ -235,7 +281,7 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
                 if match:
                     try:
                         parameters["max_rating"] = float(match.group(2))
-                    except Exception:
+                    except ValueError:
                         pass
 
         if not tool_name:
@@ -357,7 +403,6 @@ Analyze and decide next action.
 
     # Parse response to determine next action
     import json
-    import re
 
     json_match = re.search(r"\{[^{}]*\}", response.content, re.DOTALL)
 
@@ -396,9 +441,15 @@ def synthesizer_node(state: AgentState) -> Dict[str, Any]:
     tool_results = state.get("tool_results", [])
 
     # Format all results for the synthesis
+    def _format_result(res: Any) -> str:
+        if isinstance(res, dict) and "summary" in res:
+            return str(res["summary"])
+        text = str(res)
+        return text if len(text) <= 3000 else text[:3000] + "\n...(truncated)"
+
     results_summary = "\n\n".join(
         [
-            f"**Step {r.get('step', 'N/A')}: {r.get('tool', 'Unknown')}**\n{r.get('result', 'No result')}"
+            f"**Step {r.get('step', 'N/A')}: {r.get('tool', 'Unknown')}**\n{_format_result(r.get('result', 'No result'))}"
             for r in tool_results
             if "error" not in r
         ]

@@ -30,6 +30,9 @@ class ProductSearchInput(BaseModel):
     min_rating: Optional[float] = Field(
         default=None, description="Minimum rating filter (1.0 to 5.0)"
     )
+    max_rating: Optional[float] = Field(
+        default=None, description="Maximum rating filter (1.0 to 5.0)"
+    )
     keyword: Optional[str] = Field(
         default=None, description="Keyword to search in product name or description"
     )
@@ -83,6 +86,7 @@ def search_products(
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
     min_rating: Optional[float] = None,
+    max_rating: Optional[float] = None,
     keyword: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> str:
@@ -108,6 +112,7 @@ def search_products(
             and min_price is None
             and max_price is None
             and min_rating is None
+            and max_rating is None
         ):
             return "Please specify a category or keyword to narrow the search."
 
@@ -133,6 +138,8 @@ def search_products(
                 mask = False
                 for hint in hints:
                     norm_part = re.sub(r"[^a-z0-9]", "", hint.lower())
+                    if not norm_part:
+                        continue
                     # Match against full normalized category and any normalized segments
                     mask = mask | df["category_norm"].str.contains(
                         norm_part, case=False, na=False
@@ -153,6 +160,9 @@ def search_products(
 
         if min_rating is not None:
             df = df[df["rating"] >= min_rating]
+
+        if max_rating is not None:
+            df = df[df["rating"] <= max_rating]
 
         if keyword:
             keyword_lower = keyword.lower()

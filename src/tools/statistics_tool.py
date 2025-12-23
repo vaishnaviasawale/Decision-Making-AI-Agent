@@ -20,6 +20,9 @@ class StatisticsInput(BaseModel):
     operation: str = Field(
         description="Type of statistical operation: 'category_comparison', 'price_analysis', 'rating_ranking', 'discount_effectiveness', 'summary'"
     )
+    product_names: Optional[List[str]] = Field(
+        default=None, description="Limit analysis to these product names (exact match)"
+    )
     categories: Optional[List[str]] = Field(
         default=None,
         description="List of categories to compare (for category_comparison)",
@@ -67,6 +70,7 @@ def _get_unique_products(df: pd.DataFrame) -> pd.DataFrame:
 @tool(args_schema=StatisticsInput)
 def calculate_statistics(
     operation: str,
+    product_names: Optional[List[str]] = None,
     categories: Optional[List[str]] = None,
     top_n: int = 5,
     group_by: Optional[str] = None,
@@ -89,6 +93,11 @@ def calculate_statistics(
     try:
         df = _load_dataset()
         unique_products = _get_unique_products(df)
+
+        if product_names:
+            unique_products = unique_products[
+                unique_products["product_name"].isin(product_names)
+            ]
 
         if operation == "category_comparison":
             # Compare metrics across categories

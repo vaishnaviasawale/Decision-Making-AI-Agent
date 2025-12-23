@@ -87,13 +87,6 @@ def _load_dataset() -> pd.DataFrame:
         pd.to_numeric(df["rating_count"], errors="coerce").fillna(0).astype(int)
     )
 
-    if "sub_category" not in df.columns:
-        df["sub_category"] = (
-            df["category"]
-            .astype(str)
-            .apply(lambda x: x.split("|")[-1] if "|" in x else "")
-        )
-
     return df
 
 
