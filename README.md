@@ -149,7 +149,12 @@ decision-making-agent/
    # Edit .env and add your CLAUDE API key
    ```
 
-5. **Run the agent:**
+5. **Add the dataset:**
+   Download the dataset from
+   ``https://www.kaggle.com/datasets/karkavelrajaj/amazon-sales-dataset`` and
+   add it to the folder `data` with the name `amazon.csv`
+
+6. **Run the agent:**
    ```bash
    python3 main.py
    ```
