@@ -9,7 +9,7 @@ Each node represents a step in the agent's reasoning and execution process:
 5. Synthesizer: Creates the final user-friendly answer
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import re
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_anthropic import ChatAnthropic
@@ -56,8 +56,6 @@ Available tools for each step:
 3. calculate_statistics - Calculate statistics, comparisons, and rankings
 
 Create a plan with 2-5 steps. Each step should be a clear action that can be executed with one of the tools.
-
-Do NOT assume a specific category (like "Electronics") unless the user explicitly mentions it.
 
 Respond with a JSON array of steps, like:
 ["Step 1: Search for products in Electronics category", "Step 2: Analyze reviews to find complaints", "Step 3: Calculate category statistics for comparison"]
@@ -149,8 +147,8 @@ Available tools and their parameters:
    - top_n: int (for rankings)
    - group_by: str ("category")
 
-Important:
-- If the user goal or current task mentions categories (e.g., "speakers", "printers"), include them in the category (or categories) parameter so search_products and downstream tools operate on the right subset. Do not leave category empty when categories are implied.
+Rule: Never put the entire user question sentence into the `category` field. `category` should be a short hint like "speakers" or "printers".
+Rule: If the task mentions one or more categories (e.g. "Printers and Speakers"), ALWAYS pass them into `search_products.category` as a comma-separated string like "Printers, Speakers".
 
 Respond with ONLY this JSON object (no code fences, no extra text):
 {"tool": "tool_name", "parameters": { ... }}
@@ -205,10 +203,50 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
             "needs_more_info": False,
         }
 
+    def _extract_category_hints(text: str) -> Optional[str]:
+        """
+        Extract category hints from a planning step or user goal.
+        Returns a comma-separated string suitable for search_products.category, or None.
+        """
+        if not text:
+            return None
+        t = str(text).strip()
+        if not t:
+            return None
+
+        # Common plan phrasing: "in the X and Y categories"
+        m = re.search(
+            r"\b(?:in|within)\s+(?:the\s+)?(.+?)\s+categor(?:y|ies)\b",
+            t,
+            re.IGNORECASE,
+        )
+        if m:
+            raw = m.group(1)
+            raw = raw.replace("&", " and ").replace("|", ",")
+            raw = re.sub(r"\band\b", ",", raw, flags=re.IGNORECASE)
+            parts = [p.strip(" .") for p in raw.split(",") if p.strip(" .")]
+            # Keep only short-ish, category-like phrases; avoid swallowing full sentences.
+            parts = [p for p in parts if 1 <= len(p.split()) <= 4 and len(p) <= 40]
+            if parts:
+                return ", ".join(parts)
+
+        # Fallback: if the text contains "... Printers and Speakers ..." without "category"
+        m2 = re.search(
+            r"\b([A-Za-z][A-Za-z ]{2,40})\s+and\s+([A-Za-z][A-Za-z ]{2,40})\b", t
+        )
+        if m2:
+            a, b = m2.group(1).strip(), m2.group(2).strip()
+            a = a.strip(" .,:;")
+            b = b.strip(" .,:;")
+            if 1 <= len(a.split()) <= 4 and 1 <= len(b.split()) <= 4:
+                return f"{a}, {b}"
+
+        return None
+
     try:
         tool_selection = json.loads(json_match.group())
         tool_name = tool_selection.get("tool")
-        parameters = tool_selection.get("parameters", {})
+        parameters = tool_selection.get("parameters", {}) or {}
 
         # Fallback: try to infer tool name from text if missing
         if not tool_name:
@@ -218,18 +256,80 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
                     tool_name = candidate
                     break
 
+        # Sanitize / enrich parameters for search_products
+        if tool_name == "search_products":
+            # If selector returns empty params, try to derive category hints from the current task / goal.
+            has_any_filter = any(
+                parameters.get(k) is not None
+                for k in [
+                    "category",
+                    "keyword",
+                    "min_price",
+                    "max_price",
+                    "min_rating",
+                    "max_rating",
+                    "limit",
+                ]
+            )
+            if not has_any_filter:
+                current_task = ""
+                try:
+                    current_task = state.get("plan", [])[state.get("current_step", 0)]
+                except Exception:
+                    current_task = ""
+                hint = _extract_category_hints(
+                    str(current_task)
+                ) or _extract_category_hints(str(state.get("user_goal", "")))
+                if hint:
+                    parameters["category"] = hint
+
+            # If selector accidentally puts the entire question in category, drop it.
+            cat_val = parameters.get("category")
+            if isinstance(cat_val, str):
+                looks_like_sentence = len(cat_val) > 40 and (" " in cat_val)
+                if (
+                    looks_like_sentence
+                    and cat_val.strip().lower()
+                    == state.get("user_goal", "").strip().lower()
+                ):
+                    parameters.pop("category", None)
+
+            # Infer rating constraints from user goal if present
+            goal_text = state.get("user_goal", "")
+            if "max_rating" not in parameters:
+                m = re.search(
+                    r"(below|under|less than)\s*([0-9](?:\.[0-9])?)",
+                    goal_text,
+                    re.IGNORECASE,
+                )
+                if m:
+                    try:
+                        parameters["max_rating"] = float(m.group(2))
+                    except ValueError:
+                        pass
+            if "min_rating" not in parameters:
+                m = re.search(
+                    r"(above|over|greater than)\s*([0-9](?:\.[0-9])?)",
+                    goal_text,
+                    re.IGNORECASE,
+                )
+                if m:
+                    try:
+                        parameters["min_rating"] = float(m.group(2))
+                    except ValueError:
+                        pass
+
         # Provide a safe default operation for statistics if omitted
         if tool_name == "calculate_statistics" and "operation" not in parameters:
             parameters["operation"] = "summary"
 
-        # Enforce pipeline: downstream tools must use the latest search subset (if available)
+        # Enforce: analysis/statistics must use the latest search subset unless explicitly requested otherwise
         if tool_name in ["analyze_reviews", "calculate_statistics"]:
             last_search = None
             for prev in reversed(state.get("tool_results", [])):
                 if prev.get("tool") == "search_products":
                     last_search = prev.get("result")
                     break
-
             if isinstance(last_search, dict) and isinstance(
                 last_search.get("products"), list
             ):
@@ -251,7 +351,6 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
                 ):
                     parameters["product_names"] = product_names
             elif isinstance(last_search, str):
-                # Search failed/was too broad; do not proceed with whole-dataset analysis
                 return {
                     "messages": [
                         AIMessage(
@@ -265,24 +364,6 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
                     ],
                     "needs_more_info": False,
                 }
-
-        # Fallback: if search_products is selected with no category/keyword, try to use user_goal as a hint
-        if tool_name == "search_products":
-            if not parameters.get("category") and not parameters.get("keyword"):
-                parameters["category"] = state.get("user_goal", "")
-            # Infer rating filter from user goal if present (e.g., "below 4.0", "under 4")
-            if "max_rating" not in parameters:
-                goal_text = state.get("user_goal", "")
-                match = re.search(
-                    r"(below|under|less than)\s*([0-9]\.?[0-9]?)",
-                    goal_text,
-                    re.IGNORECASE,
-                )
-                if match:
-                    try:
-                        parameters["max_rating"] = float(match.group(2))
-                    except ValueError:
-                        pass
 
         if not tool_name:
             return {
@@ -353,9 +434,7 @@ def analyzer_node(state: AgentState) -> Dict[str, Any]:
             "needs_more_info": False,
         }
 
-    # Deterministic control:
-    # - If there are remaining plan steps, keep going.
-    # - Otherwise synthesize.
+    # Deterministic loop: execute all planned steps unless a tool error occurs.
     if current_step < len(plan):
         return {
             "messages": [

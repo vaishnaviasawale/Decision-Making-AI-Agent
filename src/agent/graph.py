@@ -183,6 +183,7 @@ def run_agent(user_query: str, verbose: bool = True) -> str:
                     for result in node_output["tool_results"]:
                         if "error" not in result:
                             print(f"Tool: {result.get('tool')}")
+                            print(f"Params: {result.get('parameters')}")
                             print(
                                 f"Result Preview: {str(result.get('result', ''))[:200]}..."
                             )
@@ -254,7 +255,7 @@ def visualize_graph():
               │         └───────┬───────┘               │
               │          YES/   │   \\NO                │
               │              ───┘    ───                │
-              │             /           \\              │
+              │             /           \               │
               │            │             │              │
               └────────────┘             ▼              │
                                 ┌──────────────┐        │

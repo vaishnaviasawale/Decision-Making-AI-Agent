@@ -1,5 +1,3 @@
-"""
-Package initializer for the decision-making agent.
-"""
+"""Top-level package for the decision-making agent."""
 
 

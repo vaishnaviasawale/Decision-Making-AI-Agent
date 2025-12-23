@@ -76,8 +76,8 @@ def _load_dataset() -> pd.DataFrame:
         )
 
         return df
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Dataset not found at {DATASET_PATH}")
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(f"Dataset not found at {DATASET_PATH}") from exc
 
 
 @tool(args_schema=ProductSearchInput)
@@ -118,28 +118,18 @@ def search_products(
 
         # Apply filters
         if category:
-            raw = category
-            # If a long sentence, also break into words as hints
-            free_tokens = [
-                re.sub(r"[^a-z0-9]", "", w.lower()) for w in raw.split() if len(w) > 3
-            ]
-
             # Allow multiple category hints separated by comma/and/&/|
             raw_parts = (
-                raw.replace("&", " and ")
+                category.replace("&", " and ")
                 .replace("|", ",")
                 .replace(" and ", ",")
                 .split(",")
             )
             parts = [p.strip() for p in raw_parts if p.strip()]
-            hints = parts + free_tokens
-            hints = [h for h in hints if h]
-            if hints:
+            if parts:
                 mask = False
-                for hint in hints:
-                    norm_part = re.sub(r"[^a-z0-9]", "", hint.lower())
-                    if not norm_part:
-                        continue
+                for part in parts:
+                    norm_part = re.sub(r"[^a-z0-9]", "", part.lower())
                     # Match against full normalized category and any normalized segments
                     mask = mask | df["category_norm"].str.contains(
                         norm_part, case=False, na=False

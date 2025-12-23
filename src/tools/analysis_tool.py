@@ -19,7 +19,7 @@ class ReviewAnalysisInput(BaseModel):
     """Input schema for the review analysis tool."""
 
     category: Optional[str] = Field(
-        default=None, description="Filter reviews by product category (partial match)"
+        default=None, description="Filter reviews by product category"
     )
     product_name: Optional[str] = Field(
         default=None,
@@ -247,7 +247,7 @@ def analyze_reviews(
         products_analyzed = df["product_name"].unique().tolist()
 
         result_parts = [
-            f"**Review Analysis Report**",
+            "**Review Analysis Report**",
             f"   Products Analyzed: {len(products_analyzed)}",
             f"   Total Reviews: {len(reviews)}",
             f"   Analysis Type: {analysis_type.title()}",
@@ -277,7 +277,7 @@ def analyze_reviews(
                 result_parts.append("No significant complaints found.")
 
             # Add summary
-            result_parts.append(f"\n**Complaint Summary:**")
+            result_parts.append("\n**Complaint Summary:**")
             result_parts.append(
                 f"   - {len(negative_reviews)} reviews with negative sentiment"
             )
@@ -325,7 +325,7 @@ def analyze_reviews(
                     result_parts.append(f'   • "{matching_reviews[0][:100]}..."')
                     result_parts.append("")
 
-            result_parts.append(f"\n**Positive Summary:**")
+            result_parts.append("\n**Positive Summary:**")
             result_parts.append(
                 f"   - {len(positive_reviews)} reviews with positive sentiment"
             )

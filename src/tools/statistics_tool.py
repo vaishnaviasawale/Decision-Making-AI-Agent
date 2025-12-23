@@ -162,9 +162,7 @@ def calculate_statistics(
 
             if group_by:
                 if group_by not in ["category"]:
-                    return (
-                        "Grouping by sub_category is not supported with this dataset."
-                    )
+                    group_by = None
                 price_stats = (
                     unique_products.groupby(group_by)
                     .agg(
