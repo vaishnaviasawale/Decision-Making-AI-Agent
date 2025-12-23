@@ -105,7 +105,8 @@ def search_products(
     try:
         df = _load_dataset()
 
-        # Guard: avoid returning the entire dataset when no meaningful filter is provided
+        # Guard: avoid returning the entire dataset when no meaningful filter is provided.
+        # Exception: if `limit` is provided, treat it as a request for "top N" products overall.
         if (
             not category
             and not keyword
@@ -113,6 +114,7 @@ def search_products(
             and max_price is None
             and min_rating is None
             and max_rating is None
+            and limit is None
         ):
             return "Please specify a category or keyword to narrow the search."
 

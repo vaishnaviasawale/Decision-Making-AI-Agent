@@ -56,6 +56,10 @@ Available tools for each step:
 3. calculate_statistics - Calculate statistics, comparisons, and rankings
 
 Create a plan with 2-5 steps. Each step should be a clear action that can be executed with one of the tools.
+Avoid redundant steps. Do not schedule the same tool with the same intent twice (e.g. calculating the same statistics twice).
+Do NOT invent a number (like "top 10") unless the user explicitly asked for a number.
+Do NOT say "best-selling" (we don't have a sales volume column in this dataset). Use rating/review_count/price/discount instead.
+If the user asks for "top N", include that N explicitly in the step (e.g. "top 5") so the tool selector can pass it as `limit`/`top_n`.
 
 Respond with a JSON array of steps, like:
 ["Step 1: Search for products in Electronics category", "Step 2: Analyze reviews to find complaints", "Step 3: Calculate category statistics for comparison"]
@@ -149,6 +153,8 @@ Available tools and their parameters:
 
 Rule: Never put the entire user question sentence into the `category` field. `category` should be a short hint like "speakers" or "printers".
 Rule: If the task mentions one or more categories (e.g. "Printers and Speakers"), ALWAYS pass them into `search_products.category` as a comma-separated string like "Printers, Speakers".
+Rule: If the user explicitly asks for "top N", pass N into `search_products.limit` or `calculate_statistics.top_n` (especially for `rating_ranking`).
+Rule: Do not repeat the same tool call with identical parameters if it has already been executed in previous steps.
 
 Respond with ONLY this JSON object (no code fences, no extra text):
 {"tool": "tool_name", "parameters": { ... }}
@@ -243,6 +249,46 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
 
         return None
 
+    def _extract_top_n(text: str) -> Optional[int]:
+        """Extract 'top N' or 'N products' from text."""
+        if not text:
+            return None
+        t = str(text)
+        m = re.search(r"\btop\s+(\d{1,3})\b", t, re.IGNORECASE)
+        if m:
+            try:
+                return int(m.group(1))
+            except ValueError:
+                return None
+        m2 = re.search(r"\b(\d{1,3})\s+(?:products|items)\b", t, re.IGNORECASE)
+        if m2:
+            try:
+                return int(m2.group(1))
+            except ValueError:
+                return None
+        return None
+
+    def _find_duplicate_result(tool: str, params: Dict[str, Any]) -> Optional[Any]:
+        """If an identical tool call already ran, reuse its result to avoid wasted looping."""
+
+        def _norm(val: Any) -> Any:
+            if isinstance(val, dict):
+                return {k: _norm(val[k]) for k in sorted(val.keys())}
+            if isinstance(val, list):
+                normed = [_norm(v) for v in val]
+                # Sort lists of scalars/dicts deterministically by their string form.
+                return sorted(normed, key=lambda x: str(x))
+            return val
+
+        target = _norm(params)
+        for prev in reversed(state.get("tool_results", [])):
+            if prev.get("tool") != tool or "error" in prev:
+                continue
+            prev_params = prev.get("parameters", {})
+            if _norm(prev_params) == target:
+                return prev.get("result")
+        return None
+
     try:
         tool_selection = json.loads(json_match.group())
         tool_name = tool_selection.get("tool")
@@ -255,6 +301,31 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
                 if candidate in lowered:
                     tool_name = candidate
                     break
+
+        # Deterministic safety: align tool choice with the current plan step intent.
+        # This prevents pointless repeats like running search again when the step says "analyze reviews".
+        current_task_text = ""
+        try:
+            current_task_text = state.get("plan", [])[state.get("current_step", 0)]
+        except Exception:
+            current_task_text = ""
+        step_lower = str(current_task_text).lower()
+        if "review" in step_lower and any(
+            k in step_lower for k in ["analy", "complaint", "praise", "theme"]
+        ):
+            tool_name = "analyze_reviews"
+        elif any(
+            k in step_lower
+            for k in [
+                "statistic",
+                "calculate",
+                "compare",
+                "ranking",
+                "average",
+                "summary",
+            ]
+        ):
+            tool_name = "calculate_statistics"
 
         # Sanitize / enrich parameters for search_products
         if tool_name == "search_products":
@@ -319,9 +390,42 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
                     except ValueError:
                         pass
 
+            # If the user explicitly asked for top N products, propagate to search limit
+            if "limit" not in parameters:
+                n = _extract_top_n(state.get("user_goal", ""))
+                if n is not None and n > 0:
+                    parameters["limit"] = n
+
         # Provide a safe default operation for statistics if omitted
         if tool_name == "calculate_statistics" and "operation" not in parameters:
             parameters["operation"] = "summary"
+
+        # If analyze_reviews is chosen without analysis_type, infer it from the current step text.
+        if tool_name == "analyze_reviews" and "analysis_type" not in parameters:
+            if (
+                "praise" in step_lower
+                or "successful" in step_lower
+                or "what makes" in step_lower
+            ):
+                parameters["analysis_type"] = "praise"
+            elif "theme" in step_lower:
+                parameters["analysis_type"] = "themes"
+            elif (
+                "complaint" in step_lower
+                or "issue" in step_lower
+                or "avoid" in step_lower
+            ):
+                parameters["analysis_type"] = "complaints"
+
+        # If this is a ranking request and user asks for top N, pass it through
+        if tool_name == "calculate_statistics":
+            if (
+                parameters.get("operation") == "rating_ranking"
+                and "top_n" not in parameters
+            ):
+                n = _extract_top_n(state.get("user_goal", ""))
+                if n is not None and n > 0:
+                    parameters["top_n"] = n
 
         # Enforce: analysis/statistics must use the latest search subset unless explicitly requested otherwise
         if tool_name in ["analyze_reviews", "calculate_statistics"]:
@@ -377,6 +481,26 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
                 "messages": [AIMessage(content=f"Unknown tool: {tool_name}")],
                 "tool_results": [{"error": f"Unknown tool: {tool_name}"}],
                 "needs_more_info": False,
+            }
+
+        # Avoid re-running deterministic tools with identical parameters
+        dup = _find_duplicate_result(tool_name, parameters)
+        if dup is not None:
+            return {
+                "messages": [
+                    AIMessage(
+                        content=f"Skipped duplicate tool call for '{tool_name}' (reused previous result)."
+                    )
+                ],
+                "tool_results": [
+                    {
+                        "step": state["current_step"] + 1,
+                        "tool": tool_name,
+                        "parameters": parameters,
+                        "result": dup,
+                    }
+                ],
+                "current_step": state["current_step"] + 1,
             }
 
         # Execute the tool
