@@ -289,11 +289,13 @@ The agent uses `data/amazon.csv` from Kaggle (`https://www.kaggle.com/datasets/k
 ---
 
 ## Example Outputs
-python3 main.py --example
-
+```
+   python3 main.py --example
+```
+```
 DECISION MAKING AGENT - Example Queries
 
-#EXAMPLE 1: Compare the printers and speakers categories. Whic...
+### EXAMPLE 1: Compare the printers and speakers categories. Whic...
 
 DECISION MAKING AGENT
 
@@ -369,7 +371,7 @@ Node: analyzer
 Node: synthesizer
 Final answer generated
 
-# FINAL ANSWER
+### FINAL ANSWER
 Here is a comprehensive response addressing the user's original goal:
 
 **Comparison of Printers and Speakers Categories**
@@ -403,13 +405,13 @@ Product Variety:
    - Use these insights to guide product development, pricing, and marketing strategies across both the printers and speakers categories.
 
 By focusing efforts on the stronger speakers category while also improving the printers offerings, the business can enhance overall customer satisfaction and drive growth across both product lines.
-
+```
 ------------------------------------------------------------
-
+```
 Press Enter to continue to next example...
 
 
-# EXAMPLE 2: Analyze customer complaints for products with rati...
+### EXAMPLE 2: Analyze customer complaints for products with rati...
 
 DECISION MAKING AGENT
 
@@ -479,7 +481,7 @@ Node: analyzer
 Node: synthesizer
 Final answer generated
 
-# FINAL ANSWER
+### FINAL ANSWER
 Based on the review analysis, here are the key insights and recommendations:
 
 **Key Findings:**
@@ -496,13 +498,13 @@ Based on the review analysis, here are the key insights and recommendations:
 5. Improve customer support: Respond promptly to customer complaints and provide clear guidance on troubleshooting and returns/replacements to address the various issues reported.
 
 By addressing these key pain points, you can improve customer satisfaction, reduce negative reviews, and better position your products in the market.
-
+```
 ------------------------------------------------------------
-
+```
 Press Enter to continue to next example...
 
 
-# EXAMPLE 3: Find the top 5 products by rating and analyze what...
+### EXAMPLE 3: Find the top 5 products by rating and analyze what...
 
 DECISION MAKING AGENT
 
@@ -563,7 +565,7 @@ Node: analyzer
 Node: synthesizer
 Final answer generated
 
-# FINAL ANSWER
+### FINAL ANSWER
 # Top 5 Products by Rating Analysis
 
 ## Key Findings:
@@ -594,10 +596,10 @@ Final answer generated
 5. **Encourage Continued Positive Reviews**: Proactively engage with customers to maintain high levels of positive feedback and ratings for these top-performing products.
 
 By focusing on the key strengths of these top-rated products, optimizing pricing and discounts, and expanding the product lineup, you can continue to deliver exceptional value to your customers and drive business growth.
+```
+---------------------------------------------------------------
 
-------------------------------------------------------------
 
----
 
 ## Design Notes
 
