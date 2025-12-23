@@ -55,21 +55,21 @@ This agent helps users make data-backed decisions by:
                                │
                                ▼
                  ┌────────────────────────┐
-          ┌──────│    TOOL SELECTOR       │◄─────────┐
-          │      └───────────┬────────────┘          │
-          │                  │                       │
-          │                  ▼                       │
-          │      ┌────────────────────────┐          │
+          ┌─────>│    TOOL SELECTOR       │
+          │      └───────────┬────────────┘          
+          │                  │                       
+          │                  ▼                       
+          │      ┌────────────────────────┐          
           │      │    TOOL EXECUTOR       │  ← Runs LangChain tools
-          │      └───────────┬────────────┘          │
-          │                  │                       │
-          │                  ▼                       │
-          │      ┌────────────────────────┐          │
+          │      └───────────┬────────────┘          
+          │                  │                       
+          │                  ▼                       
+          │      ┌────────────────────────┐          
           │      │      ANALYZER          │  ← Evaluates results
-          │      └───────────┬────────────┘          │
-          │                  │                       │
-          │         [needs_more_info?]               │
-          │          YES/         \NO                │
+          │      └───────────┬────────────┘          
+          │                  │                       
+          │         [needs_more_info?]               
+          │          YES/         \NO                
           └─────────┘             ▼                  
                         ┌──────────────┐
                         │ SYNTHESIZER  │  ← Creates final answer
@@ -161,7 +161,7 @@ decision-making-agent/
 ### Interactive Mode (Default)
 
 ```bash
-python main.py
+python3 main.py
 ```
 
 This starts an interactive session where you can type queries:
@@ -191,8 +191,6 @@ python3 main.py --example
 ```bash
 python3 main.py --graph
 ```
-
-**Verbosity:** set `VERBOSE=true|false` in your `.env` (see `env.example`).
 
 ---
 
