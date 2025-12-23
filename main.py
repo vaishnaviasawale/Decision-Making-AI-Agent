@@ -132,12 +132,6 @@ Examples:
         "--graph", "-g", action="store_true", help="Display the agent workflow graph"
     )
 
-    parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Suppress verbose output (only show final answer)",
-    )
-
     args = parser.parse_args()
 
     # Show graph and exit
@@ -149,7 +143,7 @@ Examples:
     if not check_api_key():
         sys.exit(1)
 
-    verbose = not args.quiet
+    verbose = VERBOSE
 
     # Run single query
     if args.query:
