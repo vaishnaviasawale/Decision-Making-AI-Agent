@@ -660,12 +660,12 @@ LangGraph manages the agent's control flow through:
 
 ### Future Enhancements
 
-- [ ] Vector store integration for semantic product search
-- [ ] Multi-turn conversation memory
-- [ ] Visualization generation (charts, graphs)
-- [ ] Export reports to PDF/Excel
-- [ ] Real-time data integration via APIs
-- [ ] Support for multiple languages
-- [ ] Human-in-the-loop confirmation for critical decisions
+- Vector store integration for semantic product search
+- Multi-turn conversation memory
+- Visualization generation (charts, graphs)
+- Export reports to PDF/Excel
+- Real-time data integration via APIs
+- Support for multiple languages
+- Human-in-the-loop confirmation for critical decisions
 
 
