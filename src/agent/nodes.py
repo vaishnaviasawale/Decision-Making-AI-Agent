@@ -338,8 +338,6 @@ def analyzer_node(state: AgentState) -> Dict[str, Any]:
     Reviews the tool execution results, determines if the goal is achieved,
     or if more information/steps are needed.
     """
-    llm = get_llm()
-
     plan = state["plan"]
     current_step = state["current_step"]
     tool_results = state.get("tool_results", [])
@@ -355,76 +353,27 @@ def analyzer_node(state: AgentState) -> Dict[str, Any]:
             "needs_more_info": False,
         }
 
-    # Check if all planned steps are completed
-    if current_step >= len(plan):
+    # Deterministic control:
+    # - If there are remaining plan steps, keep going.
+    # - Otherwise synthesize.
+    if current_step < len(plan):
         return {
             "messages": [
                 AIMessage(
-                    content="All planned steps completed. Ready to synthesize answer."
+                    content=f"Continuing execution: {len(plan) - current_step} step(s) remaining."
                 )
             ],
-            "needs_more_info": False,
+            "needs_more_info": True,
+            "iteration_count": state.get("iteration_count", 0) + 1,
         }
 
-    # Analyze current results to decide next action
-    analyzer_prompt = ChatPromptTemplate.from_messages(
-        [
-            SystemMessage(
-                content="""You are an analysis assistant. Review the results and determine:
-1. Are the results sufficient to answer the user's goal?
-2. Should we continue with the next planned step?
-3. Do we need to adjust our approach?
-
-Respond with:
-{
-    "sufficient": true/false,
-    "reasoning": "brief explanation",
-    "next_action": "continue" or "synthesize" or "adjust"
-}
-"""
-            ),
-            HumanMessage(
-                content=f"""
-User Goal: {state["user_goal"]}
-
-Plan: {plan}
-
-Current Progress: Step {current_step} of {len(plan)}
-
-Latest Results: {tool_results[-1] if tool_results else "None"}
-
-Analyze and decide next action.
-"""
-            ),
-        ]
-    )
-
-    response = llm.invoke(analyzer_prompt.format_messages())
-
-    # Parse response to determine next action
-    import json
-
-    json_match = re.search(r"\{[^{}]*\}", response.content, re.DOTALL)
-
-    needs_more = True
-    if json_match:
-        try:
-            analysis = json.loads(json_match.group())
-            if analysis.get("next_action") == "synthesize" or analysis.get(
-                "sufficient"
-            ):
-                needs_more = False
-        except json.JSONDecodeError:
-            pass
-
-    # Also stop if we've completed all steps
-    if current_step >= len(plan):
-        needs_more = False
-
     return {
-        "messages": [AIMessage(content=f"Analysis: {response.content}")],
-        "intermediate_analysis": response.content,
-        "needs_more_info": needs_more,
+        "messages": [
+            AIMessage(
+                content="All planned steps completed. Ready to synthesize answer."
+            )
+        ],
+        "needs_more_info": False,
         "iteration_count": state.get("iteration_count", 0) + 1,
     }
 
