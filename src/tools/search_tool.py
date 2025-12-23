@@ -7,7 +7,7 @@ based on various criteria like category, price range, ratings, or keywords.
 
 import pandas as pd
 import re
-from typing import Optional
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 
@@ -89,7 +89,7 @@ def search_products(
     max_rating: Optional[float] = None,
     keyword: Optional[str] = None,
     limit: Optional[int] = None,
-) -> str:
+) -> Dict[str, Any]:
     """
     Search and retrieve products from the Amazon sales dataset.
 
@@ -116,7 +116,10 @@ def search_products(
             and max_rating is None
             and limit is None
         ):
-            return "Please specify a category or keyword to narrow the search."
+            return {
+                "summary": "Please specify a category or keyword to narrow the search.",
+                "products": [],
+            }
 
         # Apply filters
         if category:
@@ -142,7 +145,10 @@ def search_products(
                 if mask.any():
                     df = df[mask]
                 else:
-                    return "No products found matching the specified category filters."
+                    return {
+                        "summary": "No products found matching the specified category filters.",
+                        "products": [],
+                    }
 
         if min_price is not None:
             df = df[df["discounted_price"] >= min_price]
@@ -164,7 +170,10 @@ def search_products(
             ]
 
         if df.empty:
-            return "No products found matching the specified criteria."
+            return {
+                "summary": "No products found matching the specified criteria.",
+                "products": [],
+            }
 
         # Get unique products (since reviews create duplicates), sorted by rating then review count
         unique_products = df.drop_duplicates(subset=["product_name"]).sort_values(
@@ -193,4 +202,4 @@ def search_products(
         return {"summary": header + "\n".join(results), "products": products_payload}
 
     except Exception as e:
-        return f"Error searching products: {str(e)}"
+        return {"summary": f"Error searching products: {str(e)}", "products": []}
