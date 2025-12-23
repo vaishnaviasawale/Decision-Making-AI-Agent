@@ -112,10 +112,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py                                    # Interactive mode
-  python main.py --query "Analyze Electronics"     # Single query
-  python main.py --example                          # Run examples
-  python main.py --graph                            # Show workflow graph
+  python3 main.py                                    # Interactive mode
+  python3 main.py --query "Analyze Electronics"     # Single query
+  python3 main.py --example                          # Run examples
+  python3 main.py --graph                            # Show workflow graph
         """,
     )
 
