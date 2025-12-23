@@ -291,19 +291,13 @@ The agent uses `data/amazon.csv` from Kaggle (`https://www.kaggle.com/datasets/k
 ## Example Outputs
 python3 main.py --example
 
-============================================================
 DECISION MAKING AGENT - Example Queries
-============================================================
 
+#EXAMPLE 1: Compare the printers and speakers categories. Whic...
 
-############################################################
-# EXAMPLE 1: Compare the printers and speakers categories. Whic...
-############################################################
-============================================================
 DECISION MAKING AGENT
-============================================================
 
-User Query: Compare the printers and speakers categories. Which one has better customer satisfaction and where should we focus our efforts?
+**User Query: Compare the printers and speakers categories. Which one has better customer satisfaction and where should we focus our efforts?**
 
 ------------------------------------------------------------
 
@@ -375,9 +369,7 @@ Node: analyzer
 Node: synthesizer
 Final answer generated
 
-============================================================
-FINAL ANSWER
-============================================================
+# FINAL ANSWER
 Here is a comprehensive response addressing the user's original goal:
 
 **Comparison of Printers and Speakers Categories**
@@ -417,14 +409,11 @@ By focusing efforts on the stronger speakers category while also improving the p
 Press Enter to continue to next example...
 
 
-############################################################
 # EXAMPLE 2: Analyze customer complaints for products with rati...
-############################################################
-============================================================
-DECISION MAKING AGENT
-============================================================
 
-User Query: Analyze customer complaints for products with ratings below 4.0. What are the main issues and how can we address them?
+DECISION MAKING AGENT
+
+**User Query: Analyze customer complaints for products with ratings below 4.0. What are the main issues and how can we address them?**
 
 ------------------------------------------------------------
 
@@ -490,9 +479,7 @@ Node: analyzer
 Node: synthesizer
 Final answer generated
 
-============================================================
-FINAL ANSWER
-============================================================
+# FINAL ANSWER
 Based on the review analysis, here are the key insights and recommendations:
 
 **Key Findings:**
@@ -515,14 +502,11 @@ By addressing these key pain points, you can improve customer satisfaction, redu
 Press Enter to continue to next example...
 
 
-############################################################
 # EXAMPLE 3: Find the top 5 products by rating and analyze what...
-############################################################
-============================================================
-DECISION MAKING AGENT
-============================================================
 
-User Query: Find the top 5 products by rating and analyze what makes them successful.
+DECISION MAKING AGENT
+
+**User Query: Find the top 5 products by rating and analyze what makes them successful.**
 
 ------------------------------------------------------------
 
@@ -579,9 +563,7 @@ Node: analyzer
 Node: synthesizer
 Final answer generated
 
-============================================================
-FINAL ANSWER
-============================================================
+# FINAL ANSWER
 # Top 5 Products by Rating Analysis
 
 ## Key Findings:
