@@ -21,29 +21,40 @@ def demonstrate_tools():
     print("TOOL DEMONSTRATIONS")
     print("=" * 60)
 
-    # Demo 1: Search Products
+    # Demo 1: Search Products (headphones)
     print("\nTool: search_products")
     print("-" * 40)
     result = search_products.invoke(
-        {"category": "Electronics", "max_price": 2000, "limit": 3}
+        {
+            "category": "Headphones",
+            "keyword": "headphones",
+            "min_rating": 3.5,
+            "limit": 3,
+        }
     )
     print(result)
 
-    # Demo 2: Analyze Reviews
+    # Demo 2: Analyze Reviews (headphones)
     print("\nTool: analyze_reviews")
     print("-" * 40)
     result = analyze_reviews.invoke(
-        {"category": "Electronics", "analysis_type": "complaints"}
+        {
+            "category": "Headphones",
+            "analysis_type": "complaints",
+        }
     )
     print(result)
 
-    # Demo 3: Calculate Statistics
+    # Demo 3: Calculate Statistics (chargers vs cables)
     print("\nTool: calculate_statistics")
     print("-" * 40)
     result = calculate_statistics.invoke(
         {
             "operation": "category_comparison",
-            "categories": ["Electronics", "Clothing", "Home & Kitchen"],
+            "categories": [
+                "Chargers",
+                "Cables",
+            ],
         }
     )
     print(result)
@@ -57,16 +68,23 @@ def demonstrate_agent():
 
     queries = [
         {
-            "title": "Category Comparison",
-            "query": "Compare Electronics and Home & Kitchen categories. Which has better ratings and what are the main issues in each?",
+            "title": "Headphones Complaints",
+            "query": (
+                "Analyze complaints for headphones. What are the top issues and fixes?"
+            ),
         },
         {
-            "title": "Problem Identification",
-            "query": "Find products with ratings below 4.0 and analyze what customers are complaining about. Suggest concrete improvements.",
+            "title": "Chargers vs Cables",
+            "query": (
+                "Compare ratings and issues for chargers versus cables. "
+                "Which is better and what should be improved?"
+            ),
         },
         {
-            "title": "Discount Analysis",
-            "query": "Analyze if higher discounts lead to better customer satisfaction. What's the optimal discount strategy?",
+            "title": "Streaming Devices Check",
+            "query": (
+                "For streaming clients, summarize top complaints and recommend improvements."
+            ),
         },
     ]
 

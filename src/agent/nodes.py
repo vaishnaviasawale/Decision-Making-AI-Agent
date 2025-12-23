@@ -9,7 +9,7 @@ Each node represents a step in the agent's reasoning and execution process:
 5. Synthesizer: Creates the final user-friendly answer
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
@@ -119,35 +119,36 @@ def tool_selector_node(state: AgentState) -> Dict[str, Any]:
             SystemMessage(
                 content="""You are a tool selection assistant. Based on the current task, select the appropriate tool and its parameters.
 
+Dataset columns available: product_id, product_name, category, discounted_price, actual_price, discount_percentage, rating, rating_count, about_product, review_* fields. 
+
 Available tools and their parameters:
 
-1. **search_products**
-   - category: str (e.g., "Electronics", "Clothing", "Home & Kitchen")
-   - sub_category: str (e.g., "Headphones", "Wearables")
+1) search_products
+   - category: str (partial match, case-insensitive)
    - min_price: float
    - max_price: float
    - min_rating: float (1.0-5.0)
    - keyword: str (search in product name/description)
    - limit: int (default 10)
 
-2. **analyze_reviews**
+2) analyze_reviews
    - category: str
-   - product_name: str
+   - product_name: str (partial match)
    - analysis_type: str ("complaints", "praise", "themes", "all")
    - min_rating: float
    - max_rating: float
 
-3. **calculate_statistics**
+3) calculate_statistics
    - operation: str ("category_comparison", "price_analysis", "rating_ranking", "discount_effectiveness", "summary")
-   - categories: list of strings (for comparison)
+   - categories: list[str] (for comparison)
    - top_n: int (for rankings)
-   - group_by: str ("category" or "sub_category")
+   - group_by: str ("category")
 
-Respond with a JSON object containing:
-{
-    "tool": "tool_name",
-    "parameters": { ... }
-}
+Important:
+- If the user goal or current task mentions categories (e.g., "speakers", "printers"), include them in the category (or categories) parameter so search_products and downstream tools operate on the right subset. Do not leave category empty when categories are implied.
+
+Respond with ONLY this JSON object (no code fences, no extra text):
+{"tool": "tool_name", "parameters": { ... }}
 """
             ),
             HumanMessage(
@@ -197,6 +198,7 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
         return {
             "messages": [AIMessage(content="Could not parse tool selection.")],
             "tool_results": [{"error": "Failed to parse tool selection"}],
+            "needs_more_info": False,
         }
 
     try:
@@ -204,10 +206,50 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
         tool_name = tool_selection.get("tool")
         parameters = tool_selection.get("parameters", {})
 
+        # Fallback: try to infer tool name from text if missing
+        if not tool_name:
+            lowered = analysis.lower()
+            for candidate in TOOL_MAP.keys():
+                if candidate in lowered:
+                    tool_name = candidate
+                    break
+
+        # Provide a safe default operation for statistics if omitted
+        if tool_name == "calculate_statistics" and "operation" not in parameters:
+            parameters["operation"] = "summary"
+
+        # Fallback: if search_products is selected with no category/keyword, try to use user_goal as a hint
+        if tool_name == "search_products":
+            if not parameters.get("category") and not parameters.get("keyword"):
+                parameters["category"] = state.get("user_goal", "")
+            # Infer rating filter from user goal if present (e.g., "below 4.0", "under 4")
+            if "max_rating" not in parameters:
+                import re
+
+                goal_text = state.get("user_goal", "")
+                match = re.search(
+                    r"(below|under|less than)\s*([0-9]\.?[0-9]?)",
+                    goal_text,
+                    re.IGNORECASE,
+                )
+                if match:
+                    try:
+                        parameters["max_rating"] = float(match.group(2))
+                    except Exception:
+                        pass
+
+        if not tool_name:
+            return {
+                "messages": [AIMessage(content="Tool selection missing tool name.")],
+                "tool_results": [{"error": "Tool selection missing tool name"}],
+                "needs_more_info": False,
+            }
+
         if tool_name not in TOOL_MAP:
             return {
                 "messages": [AIMessage(content=f"Unknown tool: {tool_name}")],
                 "tool_results": [{"error": f"Unknown tool: {tool_name}"}],
+                "needs_more_info": False,
             }
 
         # Execute the tool
@@ -233,11 +275,13 @@ def tool_executor_node(state: AgentState) -> Dict[str, Any]:
         return {
             "messages": [AIMessage(content=f"JSON parsing error: {e}")],
             "tool_results": [{"error": f"JSON parsing error: {str(e)}"}],
+            "needs_more_info": False,
         }
     except Exception as e:
         return {
             "messages": [AIMessage(content=f"Tool execution error: {e}")],
             "tool_results": [{"error": f"Tool execution error: {str(e)}"}],
+            "needs_more_info": False,
         }
 
 
@@ -253,6 +297,17 @@ def analyzer_node(state: AgentState) -> Dict[str, Any]:
     plan = state["plan"]
     current_step = state["current_step"]
     tool_results = state.get("tool_results", [])
+
+    # If the latest result is an error, stop looping and synthesize with what we have
+    if tool_results and "error" in tool_results[-1]:
+        return {
+            "messages": [
+                AIMessage(
+                    content=f"Halting because of tool error: {tool_results[-1]['error']}"
+                )
+            ],
+            "needs_more_info": False,
+        }
 
     # Check if all planned steps are completed
     if current_step >= len(plan):

@@ -1,6 +1,4 @@
-"""
-LangChain Tool definitions for the Decision Making Agent.
-"""
+"""Tool exports for the decision-making agent."""
 
 from src.tools.search_tool import search_products
 from src.tools.analysis_tool import analyze_reviews

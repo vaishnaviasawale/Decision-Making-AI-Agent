@@ -79,7 +79,7 @@ def run_interactive_mode():
 def run_example_queries():
     """Run a set of example queries to demonstrate the agent."""
     example_queries = [
-        "Compare the Electronics and Home & Kitchen categories. Which one has better customer satisfaction and where should we focus our efforts?",
+        "Compare the printers and speakers categories. Which one has better customer satisfaction and where should we focus our efforts?",
         "Analyze customer complaints for products with ratings below 4.0. What are the main issues and how can we address them?",
         "Find the top 5 products by rating and analyze what makes them successful.",
     ]

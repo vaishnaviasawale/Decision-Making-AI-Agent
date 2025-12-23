@@ -19,11 +19,14 @@ class ReviewAnalysisInput(BaseModel):
     """Input schema for the review analysis tool."""
 
     category: Optional[str] = Field(
-        default=None, description="Filter reviews by product category"
+        default=None, description="Filter reviews by product category (partial match)"
     )
     product_name: Optional[str] = Field(
         default=None,
         description="Filter reviews for a specific product name (partial match)",
+    )
+    product_names: Optional[List[str]] = Field(
+        default=None, description="Filter reviews for a list of product names (exact)"
     )
     analysis_type: str = Field(
         default="complaints",
@@ -61,11 +64,36 @@ PRAISE_PATTERNS = [
 
 
 def _load_dataset() -> pd.DataFrame:
-    """Load the Amazon sales dataset."""
+    """Load and normalize the Amazon sales dataset."""
     df = pd.read_csv(DATASET_PATH)
+
+    def _to_number(val: str) -> float:
+        cleaned = re.sub(r"[^\d.]", "", str(val))
+        return float(cleaned) if cleaned else 0.0
+
+    df["discounted_price"] = df["discounted_price"].apply(_to_number)
+    df["actual_price"] = df["actual_price"].apply(_to_number)
     df["discount_percentage"] = (
-        df["discount_percentage"].str.replace("%", "").astype(float)
+        df["discount_percentage"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+        .apply(_to_number)
     )
+    df["rating"] = pd.to_numeric(df["rating"], errors="coerce").fillna(0.0)
+    df["rating_count"] = (
+        df["rating_count"].astype(str).str.replace(",", "", regex=False)
+    )
+    df["rating_count"] = (
+        pd.to_numeric(df["rating_count"], errors="coerce").fillna(0).astype(int)
+    )
+
+    if "sub_category" not in df.columns:
+        df["sub_category"] = (
+            df["category"]
+            .astype(str)
+            .apply(lambda x: x.split("|")[-1] if "|" in x else "")
+        )
+
     return df
 
 
@@ -177,6 +205,7 @@ def _identify_sentiment(review: str) -> str:
 def analyze_reviews(
     category: Optional[str] = None,
     product_name: Optional[str] = None,
+    product_names: Optional[List[str]] = None,
     analysis_type: str = "complaints",
     min_rating: Optional[float] = None,
     max_rating: Optional[float] = None,
@@ -200,9 +229,11 @@ def analyze_reviews(
 
         # Apply filters
         if category:
-            df = df[df["category"].str.lower() == category.lower()]
+            df = df[df["category"].str.contains(category, case=False, na=False)]
 
-        if product_name:
+        if product_names:
+            df = df[df["product_name"].isin(product_names)]
+        elif product_name:
             df = df[
                 df["product_name"]
                 .str.lower()

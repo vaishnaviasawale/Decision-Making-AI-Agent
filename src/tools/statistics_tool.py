@@ -6,6 +6,7 @@ generates data-driven insights from the sales dataset.
 """
 
 import pandas as pd
+import re
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
@@ -27,17 +28,34 @@ class StatisticsInput(BaseModel):
         default=5, description="Number of top results to return for rankings"
     )
     group_by: Optional[str] = Field(
-        default=None,
-        description="Field to group results by: 'category', 'sub_category'",
+        default=None, description="Field to group results by: 'category'"
     )
 
 
 def _load_dataset() -> pd.DataFrame:
-    """Load the Amazon sales dataset."""
+    """Load and normalize the Amazon sales dataset."""
     df = pd.read_csv(DATASET_PATH)
+
+    def _to_number(val: str) -> float:
+        cleaned = re.sub(r"[^\d.]", "", str(val))
+        return float(cleaned) if cleaned else 0.0
+
+    df["discounted_price"] = df["discounted_price"].apply(_to_number)
+    df["actual_price"] = df["actual_price"].apply(_to_number)
     df["discount_percentage"] = (
-        df["discount_percentage"].str.replace("%", "").astype(float)
+        df["discount_percentage"]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+        .apply(_to_number)
     )
+    df["rating"] = pd.to_numeric(df["rating"], errors="coerce").fillna(0.0)
+    df["rating_count"] = (
+        df["rating_count"].astype(str).str.replace(",", "", regex=False)
+    )
+    df["rating_count"] = (
+        pd.to_numeric(df["rating_count"], errors="coerce").fillna(0).astype(int)
+    )
+
     return df
 
 
@@ -75,11 +93,13 @@ def calculate_statistics(
         if operation == "category_comparison":
             # Compare metrics across categories
             if categories:
-                filtered = unique_products[
-                    unique_products["category"]
-                    .str.lower()
-                    .isin([c.lower() for c in categories])
-                ]
+                lowered = [c.lower() for c in categories]
+                mask = False
+                for c in lowered:
+                    mask = mask | unique_products["category"].str.lower().str.contains(
+                        c, na=False
+                    )
+                filtered = unique_products[mask]
             else:
                 filtered = unique_products
 
@@ -132,6 +152,10 @@ def calculate_statistics(
             result_parts = ["**Price Analysis Report**\n"]
 
             if group_by:
+                if group_by not in ["category"]:
+                    return (
+                        "Grouping by sub_category is not supported with this dataset."
+                    )
                 price_stats = (
                     unique_products.groupby(group_by)
                     .agg(
@@ -189,15 +213,6 @@ def calculate_statistics(
                 result_parts.append("**Categories Ranked by Average Rating:**")
                 for i, (cat, rating) in enumerate(ranking.head(top_n).items(), 1):
                     result_parts.append(f"{i}. {cat}: {rating:.2f}")
-            elif group_by == "sub_category":
-                ranking = (
-                    unique_products.groupby("sub_category")["rating"]
-                    .mean()
-                    .sort_values(ascending=False)
-                )
-                result_parts.append("**Sub-categories Ranked by Average Rating:**")
-                for i, (subcat, rating) in enumerate(ranking.head(top_n).items(), 1):
-                    result_parts.append(f"{i}. {subcat}: {rating:.2f}")
             else:
                 # Rank individual products
                 top_products = unique_products.nlargest(top_n, "rating")
@@ -278,9 +293,6 @@ def calculate_statistics(
             result_parts.append(f"Total Products: {len(unique_products)}")
             result_parts.append(f"Total Reviews: {len(df)}")
             result_parts.append(f"Categories: {unique_products['category'].nunique()}")
-            result_parts.append(
-                f"Sub-categories: {unique_products['sub_category'].nunique()}"
-            )
             result_parts.append("")
 
             result_parts.append("**Rating Statistics:**")

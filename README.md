@@ -212,7 +212,6 @@ Searches and retrieves products from the Amazon sales dataset.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `category` | str | Product category (e.g., "Electronics") |
-| `sub_category` | str | Sub-category (e.g., "Headphones") |
 | `min_price` | float | Minimum discounted price |
 | `max_price` | float | Maximum discounted price |
 | `min_rating` | float | Minimum rating (1.0-5.0) |
@@ -261,7 +260,7 @@ Calculates statistics and performs comparisons.
 | `operation` | str | "category_comparison", "price_analysis", "rating_ranking", "discount_effectiveness", "summary" |
 | `categories` | list | Categories to compare |
 | `top_n` | int | Number of top results |
-| `group_by` | str | "category" or "sub_category" |
+| `group_by` | str | "category" |
 
 **Example:**
 ```python
@@ -274,74 +273,311 @@ calculate_statistics.invoke({
 ---
 
 ## Example Outputs
+python3 main.py --example
 
-### Example 1: Category Comparison
+============================================================
+DECISION MAKING AGENT - Example Queries
+============================================================
 
-**Query:** "Compare Electronics and Home & Kitchen categories. Which has better ratings?"
 
-**Agent Plan:**
-1. Search for products in Electronics category
-2. Search for products in Home & Kitchen category
-3. Calculate category comparison statistics
-4. Analyze reviews for both categories
+############################################################
+# EXAMPLE 1: Compare the Home Theatre and Mobile Accessories ca...
+############################################################
+============================================================
+DECISION MAKING AGENT
+============================================================
 
-**Final Output:**
-```
-Category Analysis Summary
+User Query: Compare the Home Theatre and Mobile Accessories categories. Which one has better customer satisfaction and where should we focus our efforts?
 
-Electronics:
-- Average Rating: 4.05
-- Products: 8
-- Top Issues: Battery problems, connectivity issues
-- Strengths: Good value for money
+------------------------------------------------------------
 
-Home & Kitchen:
-- Average Rating: 4.15
-- Products: 6
-- Top Issues: Durability concerns, quality variations
-- Strengths: Practical features
+Node: planner
+Plan: ['Step 1: Search for products in the Home Theatre and Mobile Accessories categories using the search_products tool. Retrieve key metrics like average rating, number of reviews, and price range for each category.', 'Step 2: Analyze the customer reviews for the top products in each category using the analyze_reviews tool. Look for common themes of praise and complaints to gauge customer satisfaction.', 'Step 3: Calculate and compare the overall customer satisfaction statistics for the Home Theatre and Mobile Accessories categories using the calculate_statistics tool. This could include average rating, percentage of 5-star reviews, and review sentiment analysis.', 'Step 4: Determine which category has higher customer satisfaction based on the review analysis and statistics. Identify the key drivers of satisfaction or dissatisfaction to focus product development and marketing efforts.']
 
-Recommendation:
-Home & Kitchen shows slightly better customer satisfaction. 
-Focus on Electronics should address:
-1. Improve battery life accuracy in marketing
-2. Enhance connectivity reliability
-3. Better quality control for components
-```
+Node: tool_selector
 
-### Example 2: Complaint Analysis
+Node: tool_executor
+Tool: search_products
+Result Preview: Found 10 product(s) matching your criteria:
 
-**Query:** "Find products rated below 4.0 and identify main complaints"
+  **Amazon Basics Wireless Mouse | 2.4 GHz Connection, 1600 DPI | Type - C Adapter | Upto 12 Months of Battery Life | Ambidextrous Design | Suitable for PC...
 
-**Agent Output:**
-```
-Low-Rating Product Analysis
+Node: analyzer
 
-Products with Rating < 4.0:
-1. Smart Fitness Band X200 (3.8)
-2. Non-Stick Cookware Set (3.5)
-3. Smart LED Bulb WiFi (3.6)
-4. Air Purifier HEPA (3.7)
+Node: tool_selector
 
-Top Complaints Identified:
+Node: tool_executor
+Tool: analyze_reviews
+Result Preview: **Review Analysis Report**
+   Products Analyzed: 1337
+   Total Reviews: 1465
+   Analysis Type: Complaints
 
-1. Quality Issues (12 mentions)
-   - "Coating peels off after 2 months"
-   - "Not durable, breaks easily"
+**Top Complaints Identified:**
 
-2. Performance Problems (8 mentions)
-   - "App crashes frequently"
-   - "Inaccurate readings"
+**Battery/Power Issues** (722 mentions)
+   • "Looks durable C...
 
-3. Connectivity Issues (6 mentions)
-   - "WiFi keeps disconnecting"
-   - "Bluetooth pairing problems"
+Node: analyzer
 
-Recommended Improvements:
-1. Improve manufacturing QC for cookware coating
-2. Invest in app stability and testing
-3. Enhance wireless connectivity modules
-```
+Node: tool_selector
+
+Node: tool_executor
+Tool: calculate_statistics
+Result Preview: **Dataset Summary Statistics**
+
+**Overview:**
+Total Products: 1337
+Total Reviews: 1465
+Categories: 211
+
+**Rating Statistics:**
+Average Rating: 4.09
+Rating Range: 0.0 - 5.0
+Avg Reviews per Product: 176...
+
+Node: analyzer
+
+Node: synthesizer
+Final answer generated
+
+============================================================
+FINAL ANSWER
+============================================================
+Based on the research findings, here is a comprehensive analysis and recommendations for the user:
+
+**Overview**
+The analysis covers two main product categories - Home Theatre and Mobile Accessories. The Home Theatre category includes televisions, projectors, speakers, and related accessories. The Mobile Accessories category includes products like cables, chargers, power banks, cases, and other mobile device peripherals.
+
+**Customer Satisfaction Comparison**
+Across both categories, the average customer rating is quite high at 4.09 out of 5 stars. However, the Mobile Accessories category appears to have slightly better customer satisfaction overall:
+
+- Mobile Accessories average rating: 4.16 stars
+- Home Theatre average rating: 4.03 stars
+
+The top complaints for Mobile Accessories were around battery/power issues, comfort/fit, and performance problems. For Home Theatre, the main issues were around heat, connectivity, and value concerns.
+
+This suggests the Mobile Accessories category has fewer critical pain points for customers compared to Home Theatre.
+
+**Recommendations**
+Based on the analysis, I would recommend the following:
+
+1. Focus product development and quality control efforts on the Home Theatre category to address the key issues around heat, connectivity, and value. This could involve improving product design, testing, and customer support in this area.
+
+2. Continue investing in the Mobile Accessories category, as it already has strong customer satisfaction. However, monitor the top complaint areas (battery, comfort, performance) and look for opportunities to further optimize these aspects.
+
+3. Across both categories, maintain a strong emphasis on product quality, durability, and clear communication of features/capabilities. The analysis showed some issues around misleading descriptions and quality concerns.
+
+4. Leverage the high average discounts (46.5%) to offer competitive pricing and value, which was a pain point for some Home Theatre customers.
+
+In summary, the Mobile Accessories category appears to have a slight edge in customer satisfaction currently. But there are opportunities to improve the Home Theatre offerings by addressing the key pain points identified in the analysis. Continued focus on quality, value, and customer experience will be critical for success in both categories.
+
+------------------------------------------------------------
+
+Press Enter to continue to next example...
+
+
+############################################################
+# EXAMPLE 2: Analyze customer complaints for products with rati...
+############################################################
+============================================================
+DECISION MAKING AGENT
+============================================================
+
+User Query: Analyze customer complaints for products with ratings below 4.0. What are the main issues and how can we address them?
+
+------------------------------------------------------------
+
+Node: planner
+Plan: ['Step 1: Search for products with ratings below 4.0 using the search_products tool', 'Step 2: Analyze the reviews for those low-rated products using the analyze_reviews tool to identify the main customer complaints', 'Step 3: Summarize the key issues and themes from the customer complaints', 'Step 4: Recommend potential solutions or product improvements to address the main customer complaints']
+
+Node: tool_selector
+
+Node: tool_executor
+Tool: search_products
+Result Preview: Found 10 product(s) matching your criteria:
+
+  **Amazon Basics Wireless Mouse | 2.4 GHz Connection, 1600 DPI | Type - C Adapter | Upto 12 Months of Battery Life | Ambidextrous Design | Suitable for PC...
+
+Node: analyzer
+
+Node: tool_selector
+
+Node: tool_executor
+Tool: analyze_reviews
+Result Preview: **Review Analysis Report**
+   Products Analyzed: 1337
+   Total Reviews: 1465
+   Analysis Type: Complaints
+
+**Top Complaints Identified:**
+
+**Battery/Power Issues** (722 mentions)
+   • "Looks durable C...
+
+Node: analyzer
+
+Node: synthesizer
+Final answer generated
+
+============================================================
+FINAL ANSWER
+============================================================
+**Comprehensive Response to User's Goal**
+
+**Key Findings:**
+Based on the analysis of customer complaints for products with ratings below 4.0, the main issues identified are:
+
+1. **Battery/Power Issues** (722 mentions)
+   - Customers reported problems with charging speed, battery life, and power delivery.
+
+2. **Comfort/Fit Issues** (539 mentions) 
+   - Customers complained about the design, ergonomics, and overall comfort of the products.
+
+3. **Heat Issues** (356 mentions)
+   - Customers experienced overheating problems with the products.
+
+4. **Performance Problems** (331 mentions)
+   - Customers reported issues with the overall performance and functionality of the products.
+
+5. **Value Concerns** (291 mentions)
+   - Customers felt the products were overpriced and did not provide good value for money.
+
+**Recommendations:**
+
+1. **Address Battery/Power Issues**
+   - Investigate and improve the power management and charging capabilities of the products.
+   - Ensure reliable and fast charging performance across all usage scenarios.
+   - Optimize battery life to meet customer expectations.
+
+2. **Enhance Comfort and Fit**
+   - Redesign the products to improve ergonomics and user comfort.
+   - Conduct user testing to gather feedback on the design and make necessary adjustments.
+   - Ensure the products are easy to use and integrate seamlessly into the customer's daily life.
+
+3. **Mitigate Heat Issues**
+   - Implement better thermal management solutions to prevent overheating.
+   - Conduct thorough testing to identify and address any heat-related problems.
+   - Educate customers on proper usage and maintenance to minimize heat-related issues.
+
+4. **Improve Overall Performance**
+   - Analyze the root causes of the performance problems and make necessary improvements.
+   - Optimize the product's functionality to meet or exceed customer expectations.
+   - Conduct rigorous testing to ensure consistent and reliable performance.
+
+5. **Enhance Perceived Value**
+   - Review the pricing strategy and consider adjusting prices to better align with customer expectations.
+   - Highlight the unique features and benefits of the products to justify the pricing.
+   - Offer additional value-added services or accessories to enhance the overall customer experience.
+
+By addressing these key issues, you can improve customer satisfaction, increase product ratings, and drive long-term brand loyalty.
+
+------------------------------------------------------------
+
+Press Enter to continue to next example...
+
+
+############################################################
+# EXAMPLE 3: Find the top 5 products by rating and analyze what...
+############################################################
+============================================================
+DECISION MAKING AGENT
+============================================================
+
+User Query: Find the top 5 products by rating and analyze what makes them successful.
+
+------------------------------------------------------------
+
+Node: planner
+Plan: ['Step 1: Search for the top 5 products by rating in the Electronics category using the search_products tool.', 'Step 2: Analyze the reviews for the top 5 products using the analyze_reviews tool to identify common themes of praise and complaints.', 'Step 3: Calculate statistics for the top 5 products, such as average rating, number of reviews, and price range, using the calculate_statistics tool.', 'Step 4: Identify the key factors that contribute to the success of the top 5 products based on the review analysis and product statistics.', 'Step 5: Summarize the findings to determine what makes the top 5 products successful and how this information could be applied to improve other products in the Electronics category.']
+
+Node: tool_selector
+
+Node: tool_executor
+Tool: search_products
+Result Preview: Found 10 product(s) matching your criteria:
+
+  **Amazon Basics Wireless Mouse | 2.4 GHz Connection, 1600 DPI | Type - C Adapter | Upto 12 Months of Battery Life | Ambidextrous Design | Suitable for PC...
+
+Node: analyzer
+
+Node: tool_selector
+
+Node: tool_executor
+Tool: analyze_reviews
+Result Preview: **Review Analysis Report**
+   Products Analyzed: 1337
+   Total Reviews: 1465
+   Analysis Type: Complaints
+
+**Top Complaints Identified:**
+
+**Battery/Power Issues** (722 mentions)
+   • "Looks durable C...
+
+Node: analyzer
+
+Node: tool_selector
+
+Node: tool_executor
+Tool: calculate_statistics
+Result Preview: **Dataset Summary Statistics**
+
+**Overview:**
+Total Products: 1337
+Total Reviews: 1465
+Categories: 211
+
+**Rating Statistics:**
+Average Rating: 4.09
+Rating Range: 0.0 - 5.0
+Avg Reviews per Product: 176...
+
+Node: analyzer
+
+Node: synthesizer
+Final answer generated
+
+============================================================
+FINAL ANSWER
+============================================================
+**Key Findings:**
+
+1. **Top 5 Highest Rated Products:**
+   - Amazon Basics Wireless Mouse (5.0 stars)
+   - Syncwire LTG to USB Cable (5.0 stars) 
+   - REDTECH USB-C to Lightning Cable (5.0 stars)
+   - Swiffer Instant Electric Water Heater (4.8 stars)
+   - Instant Pot Air Fryer (4.8 stars)
+
+2. **Common Positive Attributes:**
+   - Reliable, durable, and high-quality construction
+   - Fast charging and data transfer speeds
+   - Innovative and convenient features
+   - Good value for the price
+
+3. **Common Complaints:**
+   - Battery/power issues (e.g. slow charging, short battery life)
+   - Comfort/fit problems (e.g. cables too stiff, devices uncomfortable to use)
+   - Heat issues (e.g. devices getting too hot during use)
+   - Performance problems (e.g. slower than expected speeds)
+   - Value concerns (e.g. products perceived as overpriced)
+
+**Recommendations:**
+
+1. Focus on products with 4.7+ star ratings, as these tend to have the most positive reviews and satisfied customers.
+
+2. Prioritize products that emphasize durability, fast charging/data transfer, and innovative features. Consumers value these attributes highly.
+
+3. Address common complaints around battery life, comfort, heat management, and performance to ensure a positive user experience.
+
+4. Offer competitive pricing and discounts to provide good value for customers, as price is an important factor.
+
+5. Continuously monitor reviews to identify emerging issues and make product improvements accordingly.
+
+By following these recommendations, you can identify and promote the top performing products that meet customer needs and expectations. This will help drive sales and customer satisfaction.
+
+------------------------------------------------------------
 
 ---
 
